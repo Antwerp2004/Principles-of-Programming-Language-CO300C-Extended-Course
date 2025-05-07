@@ -1,0 +1,1 @@
+[[],[],[call(writeReal,[rdiv(10.0,0)])]].
