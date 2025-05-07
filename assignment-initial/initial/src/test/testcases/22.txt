@@ -1,0 +1,1 @@
+[[],[func(testFunc,[par(x,integer),par(y,float),par(x,real)],integer,[])],[]].

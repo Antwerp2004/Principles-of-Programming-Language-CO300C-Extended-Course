@@ -1,0 +1,1 @@
+[[],[proc(myProc,[],[])],[call(writeInt,[myProc])]].

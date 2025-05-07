@@ -1,3 +1,6 @@
+use_module(library(lists)).
+
+
 boolean(true).
 boolean(false).
 is_any_builtin(Name) :- is_builtin(Name, _).
@@ -16,8 +19,8 @@ has_declared(Name, [id(Name, Kind, Type, Value)|_], id(Name, Kind, Type, Value))
 has_declared(Name, [_|Rest], Declaration) :- has_declared(Name, Rest, Declaration).
 
 % check if X has been declared in a list of func/proc declarations
-has_declared_func_proc(Name, [id(Name, Kind, _, _)|_]) :- member(Kind, [func, proc]), !.
-has_declared_func_proc(Name, [_|Rest]) :- has_declared_func_proc(Name, Rest).
+find_func_proc_decl(Name, [id(Name, Kind, Type, Body)|_], id(Name, Kind, Type, Body)) :- member(Kind, [func, proc]), !.
+find_func_proc_decl(Name, [_|Rest], Declaration) :- find_func_proc_decl(Name, Rest, Declaration).
 
 
 % create_env for Global Declarations
@@ -41,23 +44,28 @@ create_env([const(Name, Expr)|Rest], env([GlobalScope|OtherScopes], FuncProcs, L
 
 
 % process_func_proc_decls(DeclarationList, EnvIn, EnvOut)
-process_func_proc_decls([], Env, Env). % Base case: empty list
+process_func_proc_decls([], Env, Env):-
+    format(user_error, 'DEBUG: p_f_p_d BASE CASE. Env: ~q~n', [Env]),!. % Base case: empty list
 % Process a function declaration
 process_func_proc_decls([func(Name, Params, ReturnType, Body)|Rest], env(Scopes, CurrentFuncProcs, LoopState), FinalEnv) :-
 	atom(Name),
+	format(user_error, 'DEBUG: p_f_p_d func ~w. CurrentFuncProcs BEFORE check: ~q~n', [Name, CurrentFuncProcs]), % DEBUG
 	(is_any_builtin(Name) -> throw(redeclare_function(Name)) ; true),
 	% Check redeclaration against global variables/constants (only need to check the global scope, which is the last one in the list after reversing)
-	env(GlobalScopeList, _, _ ) = env(Scopes, _, _),
-	(GlobalScopeList = [LastGlobalScope] ->
-		(has_declared(Name, LastGlobalScope, id(_, VarKind, _, _)), member(VarKind, [var, const])) -> throw(redeclare_function(Name)) ; true % Check global vars/consts
+	(last(Scopes, GlobalScope) ->
+		(has_declared(Name, GlobalScope, id(_, VarKind, _, _)), member(VarKind, [var, const])) -> throw(redeclare_function(Name)) ; true % Check global vars/consts
 	; true % If scopes are more complex (shouldn't be at global level initially), assume no conflict there for now
 	),
 	% Check redeclaration against already processed functions/procedures
-    (has_declared_func_proc(Name, CurrentFuncProcs) -> throw(redeclare_function(Name)) ; true),
+    (find_func_proc_decl(Name, CurrentFuncProcs, _) -> format(user_error, 'DEBUG: p_f_p_d func ~w: find_func_proc_decl SUCCEEDED. Found: ~q. Throwing redeclare_function.~n', [Name, FoundDecl]),throw(redeclare_function(Name)) 
+	;
+	format(user_error, 'DEBUG: p_f_p_d func ~w: find_func_proc_decl FAILED. Proceeding.~n', [Name]),
+	true),
 	% Check redeclaration within parameters
 	check_param_redeclaration(Params, Name), % Name needed for error message
+	format(user_error, 'DEBUG: p_f_p_d func ~w: Adding to FuncProcs and recursing.~n', [Name]), % DEBUG
 	% Add function declaration to the list
-    process_func_proc_decls(Rest, env(Scopes, [id(Name, func, ReturnType, {Params, Body})|CurrentFuncProcs], LoopState), FinalEnv).
+    process_func_proc_decls(Rest, env(Scopes, [id(Name, func, ReturnType, params_body(Params, Body))|CurrentFuncProcs], LoopState), FinalEnv).
 
 % Process a procedure declaration
 process_func_proc_decls([proc(Name, Params, Body)|Rest], env(Scopes, CurrentFuncProcs, LoopState), FinalEnv) :-
@@ -65,31 +73,17 @@ process_func_proc_decls([proc(Name, Params, Body)|Rest], env(Scopes, CurrentFunc
     % Check redeclaration against built-ins
     (is_any_builtin(Name) -> throw(redeclare_procedure(Name)) ; true),
     % Check redeclaration against global variables/constants
-	env(GlobalScopeList, _, _ ) = env(Scopes, _, _),
-	(GlobalScopeList = [LastGlobalScope] ->
-		(has_declared(Name, LastGlobalScope, id(_, VarKind, _, _)), member(VarKind, [var, const])) -> throw(redeclare_procedure(Name)) ; true
+	(last(Scopes, GlobalScope) ->
+		(has_declared(Name, GlobalScope, id(_, VarKind, _, _)), member(VarKind, [var, const])) -> throw(redeclare_procedure(Name)) ; true
 	; true
 	),
     % Check redeclaration against already processed functions/procedures
-    (has_declared_func_proc(Name, CurrentFuncProcs) -> throw(redeclare_procedure(Name)) ; true),
+    (find_func_proc_decl(Name, CurrentFuncProcs, _) -> throw(redeclare_procedure(Name)) ; true),
 	% Check redeclaration within parameters
 	check_param_redeclaration(Params, Name), % Name needed for error message
     % Add procedure declaration to the list
-    process_func_proc_decls(Rest, env(Scopes, [id(Name, proc, void, {Params, Body})|CurrentFuncProcs], LoopState), FinalEnv).
+    process_func_proc_decls(Rest, env(Scopes, [id(Name, proc, void, params_body(Params, Body))|CurrentFuncProcs], LoopState), FinalEnv).
 
-
-% Check for redeclaration WITHIN a parameter list
-% check_param_redeclaration(ParameterList, FuncProcName)
-check_param_redeclaration([], _). % Base case: empty list
-check_param_redeclaration([par(Name, Type)|Rest], FuncProcName) :-
-    atom(Name),
-    % Check if Name appears in the rest of the list
-    (has_declared(Name, [par(PName, PType) :> id(PName, par, PType, undef) || (par(PName, PType))] , _) ->
-        throw(redeclare_identifier(par(Name, Type))) % Redeclared parameter
-    ;
-        % Continue checking the rest of the list
-        check_param_redeclaration(Rest, FuncProcName)
-    ).
 
 % Helper to convert par terms to id terms for has_declared check
 % Convert [par(a,int), par(b,float)] to [id(a,par,int,undef), id(b,par,float,undef)]
@@ -103,10 +97,10 @@ check_param_redeclaration(Params, _) :-
     check_param_redeclaration_ids(ParamIds).
 
 check_param_redeclaration_ids([]).
-check_param_redeclaration_ids([id(Name, Kind, Type, Value)|RestIds]) :-
+check_param_redeclaration_ids([id(Name, _, Type, _)|RestIds]) :-
     % Check if the current Name exists in the rest of the list
     (has_declared(Name, RestIds, _) ->
-        throw(redeclare_identifier(id(Name, Kind, Type, Value))) % Or throw redeclare_identifier(par(Name,Type)) if you want the original syntax in error
+        throw(redeclare_identifier(par(Name, Type))) % Or throw redeclare_identifier(par(Name,Type)) if you want the original syntax in error
     ;
         % Continue checking the rest of the list
         check_param_redeclaration_ids(RestIds)
@@ -122,15 +116,24 @@ eval_literal(S, S, string) :- string(S), !.
 
 
 % Identifier Lookup: lookup_id(Name, Env, Declaration)
-lookup_id(Name, env([CurrentScope|OtherScopes], LoopState), Declaration) :-
+lookup_id(Name, env([CurrentScope|OtherScopes], _, LoopState), Declaration) :-
     (has_declared(Name, CurrentScope, Declaration) ->
 		true % Found in current scope, stop searching
 	;
     	% Not in current scope, try outer scopes
 		OtherScopes \== [],
-    	lookup_id(Name, env(OtherScopes, LoopState), Declaration)
+    	lookup_id(Name, env(OtherScopes, _, LoopState), Declaration)
 	),
 	!.
+
+% lookup_name(Name, Env, Declaration)
+lookup_name(Name, env(Scopes, _, _), Declaration) :-
+% Try looking up in scopes first (for vars, consts, pars)
+	lookup_id(Name, env(Scopes, _, false), Declaration),
+	!.
+lookup_name(Name, env(_, FuncProcs, _), Declaration) :-
+% If not found in scopes, look in the global func/proc list
+	find_func_proc_decl(Name, FuncProcs, Declaration).
 
 
 % Expression Evaluation (reduce, reduce_all)
@@ -140,6 +143,7 @@ reduce_all(config(V,Env),config(V,Env)):- boolean(V), !. % For boolean
 reduce_all(config(V,Env),config(V,Env)):- string(V), !.
 % Recursive case
 reduce_all(config(E, Env), config(E2, Env)):-
+	\+ (number(E); boolean(E); string(E)),
 	reduce(config(E, Env), config(E1, Env)), !,
 	reduce_all(config(E1, Env), config(E2, Env)).
 % If reduce/2 fails to make progress -> invalid expression
@@ -150,7 +154,7 @@ reduce_all(config(E, _), _) :-
 % Reduce the atom Name to Value or throws an error.
 reduce_atom(Name, Env, Value) :-
     atom(Name),
-    (lookup_id(Name, Env, id(_, Kind, _, FoundValue)) ->
+    (lookup_name(Name, Env, id(_, Kind, _, FoundValue)) ->
         % Case 1: Identifier is DECLARED in the current environment Env
         (   member(Kind, [var, const, par]) ->
             % Case 1a: Declared as var/const/par
@@ -177,12 +181,6 @@ reduce_atom(Name, Env, Value) :-
     ),
     !.
 
-% Rule for Identifiers (Atoms) - Delegate to reduce_atom
-reduce(config(Atom, Env), config(Value, Env)) :-
-    atom(Atom),
-    reduce_atom(Atom, Env, Value),
-    !.
-
 
 % reduce for Numerical Operators
 get_type(V, integer) :- integer(V).
@@ -207,13 +205,18 @@ check_numeric(Type1, Type2, Expr) :-
     (member(Type1, [integer, float]), member(Type2, [integer, float])) -> true ;
     throw(type_mismatch(Expr)).
 
-
 eval_binary_numeric_operands(Expr, E1, E2, Env, V1, Type1, V2, Type2) :-
 	reduce_all(config(E1, Env), config(V1, Env)), % Evaluate first operand
 	reduce_all(config(E2, Env), config(V2, Env)), % Evaluate second operand
 	get_type(V1, Type1), % Get type of first operand
 	get_type(V2, Type2), % Get type of second operand
 	check_numeric(Type1, Type2, Expr).
+
+% Rule for Identifiers (Atoms) - Delegate to reduce_atom
+reduce(config(Atom, Env), config(Value, Env)) :-
+    atom(Atom),
+    reduce_atom(Atom, Env, Value),
+    !.
 
 % Addition
 reduce(config(add(E1, E2), Env), config(Result, Env)) :-  
@@ -307,7 +310,13 @@ reduce_stmt(config([S|Ss], Env), config(ResultStatus, FinalEnv)) :-
 		% Otherwise, stop processing the list and propagate status
 		ResultStatus = S_Status,
 		FinalEnv = IntermediateEnv % Stop processing
-	).
+	). 
+
+% reduce_stmt for call statement
+% Check if Name is a built-in procedure
+reduce_stmt(config(call(Name, ArgsExprList), Env), config(normal, Env)) :-
+	execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env).
+
 
 % Evaluate a list of expressions (arguments)
 % reduce_args(ExpressionList, Env, ValueList)
@@ -315,6 +324,7 @@ reduce_args([], _, []).
 reduce_args([E|Es], Env, [V|Vs]) :-
 	reduce_all(config(E, Env), config(V, Env)),
 	reduce_args(Es, Env, Vs).
+
 
 % Expected number of arguments for built-in procedures
 builtin_arity(writeInt, 1).
@@ -334,36 +344,47 @@ builtin_arity(writeLn, 0).
 % Handles built-in procedures and checks arity/undeclared/invalid types
 execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env) :-
 	atom(Name),
-	(is_builtin(Name, proc) ->
-		% Check number of arguments
-		length(ArgsExprList, ActualArity),
-		builtin_arity(Name, ExpectedArity),
-		(ActualArity == ExpectedArity ->
-			reduce_args(ArgsExprList, Env, ArgValues),
-			p_call_builtin(Name, ArgValues) % p_call_builtin handles arg type checks and throws type_mismatch
+	(lookup_name(Name, Env, Decl) -> % Use lookup_name
+		(Decl = id(_, Kind, _, DeclInfo) ->
+			(Kind == proc ->
+				% Case 1: Declared as a user-defined procedure
+				% TODO: Implement user-defined procedure call logic here
+                % For now, let's assume if it's declared proc, it's valid callee but body not run yet
+                % Needs to check arity against Params in DeclInfo {Params, Body}
+                % Needs to evaluate args, create parameter scope, run body, handle status
+				format('DEBUG: Called user-defined procedure ~w', [Name]), nl, % Placeholder
+                true % Assume valid for now, actual execution needs to be added
+			; Kind == func ->
+				% Case 2: Declared as a user-defined function
+				throw(invalid_expression(call(Name, ArgsExprList)))
+			; % Kind is var, const, or par
+                throw(invalid_expression(call(Name, ArgsExprList)))
+			)
 		;
-			throw(wrong_number_of_argument(call(Name, ArgsExprList)))
-		)
+            throw(invalid_expression(call(Name, ArgsExprList)))
+        )
 	;
-		% Not a built-in procedure
-		% TODO: Add lookup for user-defined procedures in FuncsProcs list here later
-		% For now, check if it's a built-in function or just undeclared/wrong kind
-		(is_builtin(Name, func) ->
-			% Calling a built-in function as a procedure
+		% Name is NOT declared (could be built-in or truly undeclared)
+		(is_builtin(Name, proc) ->
+			% Case 3: It's a built-in procedure
+			% Check number of arguments
+			length(ArgsExprList, ActualArity),
+			builtin_arity(Name, ExpectedArity),
+			(ActualArity == ExpectedArity ->
+				% Arity matches, evaluate arguments
+				reduce_args(ArgsExprList, Env, ArgValues),
+				% Call the built-in implementation (defined in virtual.pl)
+				p_call_builtin(Name, ArgValues) % p_call_builtin handles arg type checks and throws type_mismatch
+			;
+				% Wrong number of arguments for built-in
+				throw(wrong_number_of_argument(call(Name, ArgsExprList)))
+			)
+		; is_builtin(Name, func) ->
+			% Case 4: It's a built-in function -> Cannot call function as procedure
 			throw(invalid_expression(call(Name, ArgsExprList)))
 		;
-			% Not a built-in function or procedure (implies undeclared or wrong kind like var/const used as callee)
-			(lookup_id(Name, Env, id(_, Kind, _, _)), member(Kind, [var, const, par]) ->
-				throw(invalid_expression(call(Name, ArgsExprList))) % Cannot call var/const/par
-			;
-				throw(undeclare_procedure(call(Name, ArgsExprList))) % Undeclared or declared but not func/proc
-			)
+			% Case 5: Neither declared nor built-in -> Undeclared Procedure
+			throw(undeclare_procedure(call(Name, ArgsExprList)))
 		)
 	),
 	!.
-
-
-% reduce_stmt for call statement
-% Check if Name is a built-in procedure
-reduce_stmt(config(call(Name, ArgsExprList), Env), config(normal, Env)) :-
-	execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env).
