@@ -1,0 +1,7 @@
+
+        [[var(x, integer)],[],
+         [
+            assign(x, 0),
+            do([call(writeInt,[x])], false) % Condition is immediately false
+         ]
+        ].

@@ -1,0 +1,7 @@
+
+        [[],[],
+         [
+            loop(0, call(writeInt,[1])), % Loop body should not execute
+            call(writeInt,[0]) % To show loop was skipped
+         ]
+        ].

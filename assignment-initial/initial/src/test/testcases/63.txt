@@ -1,0 +1,9 @@
+
+        [[var(x, integer)],[],
+         [
+            assign(x, 5),
+            do([call(writeInt,[x]), assign(x, sub(x,1))], greater(x,3))
+            % Body runs for x=5 (prints 5), x becomes 4. 4>3 is true.
+            % Body runs for x=4 (prints 4), x becomes 3. 3>3 is false. Loop ends.
+         ]
+        ].

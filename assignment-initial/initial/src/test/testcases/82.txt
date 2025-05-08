@@ -1,0 +1,7 @@
+
+        [[],
+         [proc(p,[],[call(writeInt,[10])]),
+          func(f,[],integer,[call(p,[]), assign(f,1)]) % p prints 10, f returns 1
+         ],
+         [call(writeInt,[call(f,[])])] % Prints 10, then prints 1
+        ].

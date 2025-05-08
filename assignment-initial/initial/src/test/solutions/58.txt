@@ -1,1 +1,1 @@
-Invalid expression: call(needsInt,[true])
+Type mismatch: call(needsInt,[true])

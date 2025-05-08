@@ -1,0 +1,5 @@
+
+        [[const(c,1)],
+         [proc(p,[],[assign(c,2)])],
+         [call(p,[])]
+        ].

@@ -1,0 +1,7 @@
+
+        [[],
+         [func(f1,[],integer,[assign(f1, 5)]),
+          func(f2,[],integer,[assign(f2, 10)])
+         ],
+         [call(writeInt,[add(sub(call(f1,[]), 1), times(call(f2,[]), 2))])] % (5-1) + (10*2) = 4 + 20 = 24
+        ].

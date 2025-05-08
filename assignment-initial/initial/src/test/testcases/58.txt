@@ -1,5 +1,5 @@
 
         [[],
          [func(needsInt,[par(x,integer)],integer,[assign(needsInt,x)])],
-         [call(needsInt,[true])]
+         [call(writeInt,[call(needsInt,[true])])]
         ].

@@ -1,0 +1,7 @@
+
+        [[],
+         [func(add1,[par(x,integer)],integer,[assign(add1,add(x,1))]),
+          proc(p,[par(y,integer)],[call(writeInt,[call(add1,[y])])])
+         ],
+         [call(p,[9])]
+        ].

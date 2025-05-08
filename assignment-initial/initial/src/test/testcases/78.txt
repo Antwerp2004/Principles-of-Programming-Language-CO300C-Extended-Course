@@ -1,0 +1,7 @@
+
+        [[],
+         [proc(printAll,[par(i,integer),par(b,boolean),par(s,string)],
+                [call(writeInt,[i]), call(writeBool,[b]), call(writeStr,[s])])
+         ],
+         [call(printAll,[5,true,"Hello"])]
+        ].

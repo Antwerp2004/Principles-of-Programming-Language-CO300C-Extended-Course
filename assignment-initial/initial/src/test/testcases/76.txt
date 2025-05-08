@@ -1,0 +1,5 @@
+
+        [[],
+         [proc(inc,[par(a,integer)],[call(writeInt,[add(a,1)])])],
+         [call(inc,[10])]
+        ].

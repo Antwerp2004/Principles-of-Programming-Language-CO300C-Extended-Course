@@ -1,0 +1,5 @@
+
+        [[],
+         [func(calc,[par(x,integer)],integer,[assign(x,add(x,1))])], % Assigns to param x, not func name calc
+         [call(calc,[5])] % Call should cause invalid_expression (unassigned return)
+        ].

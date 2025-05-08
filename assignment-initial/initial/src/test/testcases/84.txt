@@ -1,0 +1,13 @@
+
+        [[],
+         [proc(loopP,[par(n,integer)],
+            [ block([var(i,integer)],
+                [ assign(i,n),
+                  while(greater(i,0),
+                    block([], [call(writeInt,[i]), assign(i,sub(i,1))])
+                  )
+                ])
+            ])
+         ],
+         [call(loopP,[3])]
+        ].

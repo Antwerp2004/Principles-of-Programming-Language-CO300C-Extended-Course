@@ -1,0 +1,5 @@
+
+        [[var(r, integer)],
+         [func(calc,[],integer,[assign(calc, 123)])],
+         [assign(r, call(calc,[])), call(writeInt,[r])]
+        ].

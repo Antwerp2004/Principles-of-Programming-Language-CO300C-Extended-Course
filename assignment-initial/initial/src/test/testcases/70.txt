@@ -1,0 +1,13 @@
+
+        [[var(i, integer)],[],
+         [
+            assign(i, 0),
+            loop(5,
+                block([], [
+                    assign(i, add(i,1)),
+                    if(eql(imod(i,2), 0), continue(null)), % If i is even, continue
+                    call(writeInt,[i]) % Only print odd numbers
+                ])
+            )
+         ]
+        ].

@@ -1,0 +1,5 @@
+
+        [[],
+         [proc(p,[],[call(writeInt,[x])])], % x is not param or local or global
+         [call(p,[])]
+        ].

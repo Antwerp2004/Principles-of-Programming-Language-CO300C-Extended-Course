@@ -1,0 +1,14 @@
+
+        [[var(i, integer)],[],
+         [
+            assign(i, 5),
+            while(true, % Infinite loop condition
+                block([], [
+                    call(writeInt,[i]),
+                    assign(i, sub(i,1)),
+                    if(eql(i, 2), break(null)) % Break when i becomes 2
+                ])
+            ),
+            call(writeInt,[i]) % Print final value of i after break
+         ]
+        ].

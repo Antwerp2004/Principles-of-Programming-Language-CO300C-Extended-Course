@@ -131,7 +131,6 @@ reduce_all(config(V,Env),config(V,Env)):- member(V, [true, false]), !. % For boo
 reduce_all(config(V,Env),config(V,Env)):- string(V), !.
 % Recursive case
 reduce_all(config(E, Env), config(E2, Env)):-
-	\+ (number(E); boolean(E); string(E)),
 	reduce(config(E, Env), config(E1, Env)), !,
 	reduce_all(config(E1, Env), config(E2, Env)).
 % If reduce/2 fails to make progress -> invalid expression
@@ -397,17 +396,15 @@ reduce(config(call(Name, ArgsExprList), EnvIn), config(ResultValue, EnvIn)) :-
         % Look up the return value (assigned to function name's var entry)
         (   has_declared(Name, FinalParamScope, id(_, var, _, ReturnValue)) ->
             % Check if return value was assigned
-            (   ReturnValue \== undef -> true
+            (   ReturnValue \== undef -> ResultValue = ReturnValue
             ;   throw(invalid_expression(call(Name, ArgsExprList))) % Function finished without assigning return value
             ),
             % Check if return value type matches function's declared return type
             get_type(ReturnValue, ActualReturnType),
-            (   ActualReturnType == ReturnType -> true
-            ;   (ReturnType == float, ActualReturnType == integer) -> true
-            )
+            ActualReturnType == ReturnType -> true
             % ResultValue is the value found
         ;
-            throw(invalid_expression(call(Name, ArgsExprList))) % Failed to find return value slot
+            throw(type_mismatch(call(Name, ArgsExprList))) % Failed to find return value slot
         )
 
     % Case 3: Not a built-in function or declared function
@@ -427,7 +424,7 @@ reduce(config(call(Name, ArgsExprList), EnvIn), config(ResultValue, EnvIn)) :-
 
 % map_args_params(ArgValues, ParamDecls, ParamScopeList)
 % Creates the list of id(ParamName, par, ParamType, ArgValue) terms for the parameter scope.
-map_args_params([], [], []). % Base case
+map_args_params([], [], [], _). % Base case
 map_args_params([ArgValue|ArgRest], [par(ParamName, ParamType)|ParamRest], [id(ParamName, par, ParamType, ArgValue)|ScopeRest], CallFunc) :-
     get_type(ArgValue, ArgType),
     % Strict type check for argument passing
@@ -440,7 +437,6 @@ map_args_params([ArgValue|ArgRest], [par(ParamName, ParamType)|ParamRest], [id(P
 
 % Base case: Empty stmt list
 reduce_stmt(config([], Env), config(normal, Env)).
-
 % Recursive case
 reduce_stmt(config([S|Ss], Env), config(ResultStatus, FinalEnv)) :-
 	% Head stmt
@@ -449,13 +445,14 @@ reduce_stmt(config([S|Ss], Env), config(ResultStatus, FinalEnv)) :-
 	( S_Status == normal ->
         reduce_stmt(config(Ss, IntermediateEnv), config(ResultStatus, FinalEnv))
 	;
+		member(S_Status, [break, continue]) ->
 		% Otherwise, stop processing the list and propagate status
 		ResultStatus = S_Status,
 		FinalEnv = IntermediateEnv % Stop processing
-	). 
+	).
 
-% reduce_stmt for call statement
-% Check if Name is a built-in procedure
+
+% Call statement
 reduce_stmt(config(call(Name, ArgsExprList), Env), config(normal, Env)) :-
 	execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env).
 
@@ -490,7 +487,7 @@ reduce_stmt(config(block(LocalDecls, Stmts), EnvIn), config(BlockStatus, FinalOu
     % 3. Execute statements in the block's environment
     reduce_stmt(config(Stmts, EnvAfterDecls), config(BlockStatus, EnvAfterBlockExec)),
     % 4. Pop the local scope
-    EnvAfterBlockExec = env([_PoppedScope|FinalOuterScopes], _, _), % Deconstruct to get outer scopes *after* execution
+    EnvAfterBlockExec = env([_|FinalOuterScopes], _, _), % Deconstruct to get outer scopes *after* execution
     FinalOuterEnv = env(FinalOuterScopes, FuncProcs, LoopState). % Reconstruct final env without the block's scope
 
 
@@ -524,6 +521,42 @@ reduce_stmt(config(if(CondExpr, ThenStmt), EnvIn), config(FinalStatus, FinalEnv)
     ).
 
 
+% Break Statement
+reduce_stmt(config(break(null), Env), config(break, Env)) :-
+	Env = env(_, _, LoopState),
+	(LoopState == true -> true ; throw(break_not_in_loop(break(null)))).
+
+
+% Continue Statement
+reduce_stmt(config(continue(null), Env), config(continue, Env)) :-
+    Env = env(_, _, LoopState), % Extract LoopState
+    (LoopState == true -> true ; throw(continue_not_in_loop(continue(null)))).
+
+
+% Loop Statement
+% While Statement
+reduce_stmt(config(while(CondExpr, BodyStmt), EnvIn), config(normal, FinalEnv)) :-
+    reduce_while(CondExpr, BodyStmt, EnvIn, FinalEnv).
+
+% Do-While Statement
+reduce_stmt(config(do(BodyStmts, CondExpr), EnvIn), config(normal, FinalEnv)) :-
+    % Evaluate condition FIRST only to check its type
+    reduce_all(config(CondExpr, EnvIn), config(InitialCondValue, _)),
+    check_boolean(InitialCondValue, do(BodyStmts, CondExpr)),
+    % If type check passed, proceed to execute body at least once
+    reduce_do(BodyStmts, CondExpr, EnvIn, FinalEnv).
+
+% Loop N Times Statement
+reduce_stmt(config(loop(CountExpr, BodyStmt), EnvIn), config(normal, FinalEnv)) :-
+    % Evaluate count expression ONCE
+    reduce_all(config(CountExpr, EnvIn), config(N, _)),
+    (integer(N) -> true ; throw(type_mismatch(loop(CountExpr, BodyStmt)))),
+    % Check if N > 0 before starting loop helper
+    ( N =< 0 -> FinalEnv = EnvIn % If N <= 0, loop does nothing
+    ; reduce_loop_n(N, BodyStmt, EnvIn, FinalEnv) % Call helper if N > 0
+    ).
+
+
 % --- Helper for Call Statement ---
 
 % Evaluate a list of expressions (arguments)
@@ -550,23 +583,34 @@ builtin_arity(writeLn, 0).
 
 
 % Handles built-in procedures and checks arity/undeclared/invalid types
-execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env) :-
+execute_procedure_call(call(Name, ArgsExprList), EnvIn, normal, FinalEnv) :-
 	atom(Name),
-	(lookup_name(Name, Env, Decl) -> % Use lookup_name
-		(Decl = id(_, Kind, _, _) ->
+    EnvIn = env(OuterScopes, FuncProcs, LoopState),
+    CallTerm = call(Name, ArgsExprList),
+	(lookup_name(Name, EnvIn, Decl) -> % Use lookup_name
+        % Case 1: Name is Declared
+		(Decl = id(Name, Kind, _, DeclInfo) ->
 			(Kind == proc ->
-				% Case 1: Declared as a user-defined procedure
-				% TODO: Implement user-defined procedure call logic here
-                % For now, let's assume if it's declared proc, it's valid callee but body not run yet
-                % Needs to check arity against Params in DeclInfo {Params, Body}
-                % Needs to evaluate args, create parameter scope, run body, handle status
-				format('DEBUG: Called user-defined procedure ~w', [Name]), nl, % Placeholder
-                true % Assume valid for now, actual execution needs to be added
+				% Case 1a: User-defined Procedure Call
+				DeclInfo = params_body(Params, Body),
+                length(ArgsExprList, ActualArity),
+                length(Params, ExpectedArity),
+                (ActualArity == ExpectedArity -> true; throw(wrong_number_of_argument(CallTerm))),
+                % Evaluate Arguments
+				reduce_args(ArgsExprList, EnvIn, ArgValues),
+				% Create Parameter Scope (checks types)
+				map_args_params(ArgValues, Params, ParamScope, CallTerm),
+                ProcEnv = env([ParamScope|OuterScopes], FuncProcs, false),
+                % Execute Procedure Body
+				reduce_stmt(config(Body, ProcEnv), config(_, EnvAfterProc)),
+                % Pop Procedure Scope and return modified Outer Scopes
+				EnvAfterProc = env([_|FinalOuterScopes], _, _),
+				FinalEnv = env(FinalOuterScopes, FuncProcs, LoopState)
 			; Kind == func ->
-				% Case 2: Declared as a user-defined function
-				throw(invalid_expression(call(Name, ArgsExprList)))
+				% Case 1b: Declared as a user-defined function
+				throw(invalid_expression(CallTerm))
 			; % Kind is var, const, or par
-                throw(invalid_expression(call(Name, ArgsExprList)))
+                throw(invalid_expression(CallTerm))
 			)
 		;
             throw(invalid_expression(call(Name, ArgsExprList)))
@@ -574,25 +618,25 @@ execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env) :-
 	;
 		% Name is NOT declared (could be built-in or truly undeclared)
 		(is_builtin(Name, proc) ->
-			% Case 3: It's a built-in procedure
+			% Case 2a: It's a built-in procedure
 			% Check number of arguments
 			length(ArgsExprList, ActualArity),
 			builtin_arity(Name, ExpectedArity),
 			(ActualArity == ExpectedArity ->
 				% Arity matches, evaluate arguments
-				reduce_args(ArgsExprList, Env, ArgValues),
-				% Call the built-in implementation (defined in virtual.pl)
-				p_call_builtin(Name, ArgValues) % p_call_builtin handles arg type checks and throws type_mismatch
+				reduce_args(ArgsExprList, EnvIn, ArgValues),
+				p_call_builtin(Name, ArgValues)
 			;
-				% Wrong number of arguments for built-in
-				throw(wrong_number_of_argument(call(Name, ArgsExprList)))
-			)
+				% Wrong number of arguments
+				throw(wrong_number_of_argument(CallTerm))
+			),
+            FinalEnv = EnvIn
 		; is_builtin(Name, func) ->
-			% Case 4: It's a built-in function -> Cannot call function as procedure
-			throw(invalid_expression(call(Name, ArgsExprList)))
+			% Case 2b: A built-in function -> Cannot call function as procedure
+			throw(invalid_expression(CallTerm))
 		;
 			% Case 5: Neither declared nor built-in -> Undeclared Procedure
-			throw(undeclare_procedure(call(Name, ArgsExprList)))
+			throw(undeclare_procedure(CallTerm))
 		)
 	),
 	!.
@@ -601,7 +645,6 @@ execute_procedure_call(call(Name, ArgsExprList), Env, normal, Env) :-
 % --- Helper for Assignment Statement ---
 
 % update_scope(Name, NewValue, DeclaredType, ScopeIn, ScopeOut)
-% Tries to update Name in a single scope list ScopeIn, returning ScopeOut. Fails if not found.
 % Base case: Not found in this scope (empty list)
 update_scope(_, _, [], []) :- !, fail.
 
@@ -655,3 +698,69 @@ process_local_decls([const(Name, Expr)|RestDecls], env([CurrentScope|OuterScopes
     (eval_literal(Expr, Value, Type) -> true ; throw(invalid_expression(Expr))),
     % Add to current scope and recurse
     process_local_decls(RestDecls, env([[id(Name, const, Type, Value)|CurrentScope]|OuterScopes], FuncProcs, LoopState), FinalEnv).
+
+
+% --- Helpers for Loops ---
+
+% Set LoopState in environment
+set_loop_state(env(Scopes, FuncProcs, _), NewLoopState, env(Scopes, FuncProcs, NewLoopState)).
+
+% Helper for While loop
+reduce_while(CondExpr, BodyStmt, EnvIn, FinalEnv) :-
+    set_loop_state(EnvIn, true, EnvLoop),
+    % Evaluate condition
+    reduce_all(config(CondExpr, EnvLoop), config(CondValue, _)),
+    check_boolean(CondValue, while(CondExpr, BodyStmt)),
+    (   CondValue == true ->
+        % Execute body
+        reduce_stmt(config(BodyStmt, EnvLoop), config(BodyStatus, EnvAfterBody)),
+        % Handle body status
+        (   member(BodyStatus, [normal, continue]) -> % Continue looping
+            reduce_while(CondExpr, BodyStmt, EnvAfterBody, FinalEnv) % Loop with env after body exec
+        ;   BodyStatus == break ->
+            FinalEnv = EnvAfterBody
+        )
+    ;   % Condition is false, loop terminates
+        FinalEnv = EnvIn
+    ).
+
+% Helper for Do-While loop
+reduce_do(BodyStmts, CondExpr, EnvIn, FinalEnv) :-
+    set_loop_state(EnvIn, true, EnvLoop), % Environment with LoopState=true for body/condition
+    % Execute body first
+    reduce_stmt(config(BodyStmts, EnvLoop), config(BodyStatus, EnvAfterBody)),
+    % Handle body status
+    (   BodyStatus == break ->
+        FinalEnv = EnvAfterBody
+    ;   BodyStatus == continue ->
+        reduce_do_cond(BodyStmts, CondExpr, EnvAfterBody, FinalEnv)
+    ;   BodyStatus == normal ->
+        reduce_do_cond(BodyStmts, CondExpr, EnvAfterBody, FinalEnv)
+    ).
+
+% Helper for Do-While loop condition check (called after body execution)
+reduce_do_cond(BodyStmts, CondExpr, CurrentEnv, FinalEnv) :-
+    set_loop_state(CurrentEnv, true, EnvLoop),
+    % Evaluate condition
+    reduce_all(config(CondExpr, EnvLoop), config(CondValue, _)),
+    check_boolean(CondValue, do(BodyStmts, CondExpr)),
+    (   CondValue == true ->
+        reduce_do(BodyStmts, CondExpr, CurrentEnv, FinalEnv)
+    ;   % Condition false, loop terminates
+        FinalEnv = CurrentEnv
+    ).
+
+
+% Helper for Loop N times statement
+reduce_loop_n(0, _, EnvIn, EnvIn) :- !. % Base case: Counter is 0, loop done
+reduce_loop_n(N, BodyStmt, EnvIn, FinalEnv) :-
+    N > 0,
+    set_loop_state(EnvIn, true, EnvLoop), % Environment with LoopState=true for body
+    % Execute body
+    reduce_stmt(config(BodyStmt, EnvLoop), config(BodyStatus, EnvAfterBody)),
+    (   BodyStatus == break ->
+        FinalEnv = EnvAfterBody
+    ;   member(BodyStatus, [normal, continue]) -> % Continue to next iteration
+        N1 is N - 1,
+        reduce_loop_n(N1, BodyStmt, EnvAfterBody, FinalEnv) % Recurse with decremented counter and env after body
+    ).

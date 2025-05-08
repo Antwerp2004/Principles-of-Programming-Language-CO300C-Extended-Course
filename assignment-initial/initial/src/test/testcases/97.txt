@@ -1,0 +1,8 @@
+
+        [[],
+         [proc(p,[],[call(writeInt,[1])])], % Procedure that prints 1
+         [
+             if(bor(true, call(p,[])), call(writeInt,[2])), % Should print 2 (short-circuits)
+             if(band(false, call(p,[])), call(writeInt,[3])) % Should print nothing (short-circuits)
+         ]
+        ].

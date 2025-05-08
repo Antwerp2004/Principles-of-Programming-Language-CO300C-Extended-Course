@@ -1,0 +1,5 @@
+
+        [[],
+         [proc(p,[par(a,boolean)],[])],
+         [call(p,[1])]
+        ].

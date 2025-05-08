@@ -1,0 +1,7 @@
+
+        [[],
+         [proc(p2,[],[call(writeInt,[2])]),
+          proc(p1,[],[call(writeInt,[1]), call(p2,[])])
+         ],
+         [call(p1,[])]
+        ].

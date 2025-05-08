@@ -1,0 +1,5 @@
+
+        [[var(g,integer)],
+         [proc(modifyG,[],[assign(g,100)])],
+         [assign(g,0), call(modifyG,[]), call(writeInt,[g])]
+        ].

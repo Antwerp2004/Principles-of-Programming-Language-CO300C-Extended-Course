@@ -1,0 +1,5 @@
+
+        [[],
+         [proc(p,[par(i,integer)],[call(writeInt,[i])])],
+         [loop(3, call(p,[5]))] % Call p(5) three times
+        ].

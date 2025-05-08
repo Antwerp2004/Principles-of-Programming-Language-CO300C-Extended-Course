@@ -1,0 +1,28 @@
+
+        [[var(g,integer)],
+         [func(f,[par(x,integer)],integer,[assign(f,times(x,2))]),
+          proc(p,[par(y,integer)],[assign(g,add(g,y))])
+         ],
+         [
+             assign(g,1),
+             loop(3,
+                 block([var(temp,integer)],
+                     [
+                         assign(temp, call(f,[g])), % temp = g*2
+                         if(greater(temp, 5),
+                             call(p,[1]), % g = g + 1
+                             call(p,[0])  % g = g + 0
+                         )
+                     ]
+                 )
+             ),
+             call(writeInt,[g]) % Iter 1: g=1, temp=2, temp<5, p(0) called, g=1.
+                                % Iter 2: g=1, temp=2, temp<5, p(0) called, g=1.
+                                % Iter 3: g=1, temp=2, temp<5, p(0) called, g=1. Something's wrong?
+                                % Let's trace again:
+                                % g=1 -> loop starts
+                                % Iter 1: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1.
+                                % Iter 2: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1.
+                                % Iter 3: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1. Final g=1. Expected: 1
+         ]
+        ].

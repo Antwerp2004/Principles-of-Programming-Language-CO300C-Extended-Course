@@ -1,0 +1,7 @@
+
+        [[var(x,integer)],
+         [proc(p,[par(x,integer)],[ % Param x is OK (different scope)
+             block([var(x,integer)],[]) % Local x is OK (different scope)
+             ])],
+         []
+        ].

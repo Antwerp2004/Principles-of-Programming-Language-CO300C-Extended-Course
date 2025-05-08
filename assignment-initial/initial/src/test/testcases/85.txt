@@ -1,0 +1,16 @@
+
+        [[],
+         [proc(p,[],
+            [ block([var(i,integer)],
+                [ assign(i,0),
+                  while(true,
+                    block([], [
+                        assign(i,add(i,1)), call(writeInt,[i]),
+                        if(eql(i,3), break(null))
+                    ])
+                  ) % End while
+                ])
+            ])
+         ],
+         [call(p,[]), call(writeInt,[99])] % 99 should print after p finishes
+        ].

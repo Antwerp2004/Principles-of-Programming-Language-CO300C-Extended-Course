@@ -1,0 +1,9 @@
+
+        [[],
+         [proc(p,[par(x,integer)],
+              [ block([var(x,integer)], % Local x shadows param x
+                  [assign(x,10), call(writeInt,[x])]) % Prints local x=10
+              ])
+         ],
+         [call(p,[1])]
+        ].

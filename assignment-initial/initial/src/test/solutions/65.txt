@@ -1,0 +1,1 @@
+Type mismatch: do([call(writeInt,[1])],0)

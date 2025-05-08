@@ -1,0 +1,5 @@
+
+        [[],
+         [proc(p,[],[call(writeInt,[1])])],
+         [call(p,[])]
+        ].

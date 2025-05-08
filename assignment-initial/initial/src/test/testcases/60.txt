@@ -1,0 +1,9 @@
+
+        [[var(i, integer)],[],
+         [
+            assign(i, 3),
+            while(greater(i, 0),
+                block([], [call(writeInt,[i]), assign(i, sub(i,1))])
+            )
+         ]
+        ].

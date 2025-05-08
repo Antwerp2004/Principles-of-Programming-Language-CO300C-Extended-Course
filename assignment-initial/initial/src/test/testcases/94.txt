@@ -1,0 +1,7 @@
+
+        [[],
+         [func(f,[par(x,integer)],boolean,[assign(f,true)]),
+          proc(p,[par(y,integer)],[call(writeBool,[call(f,[y])])])
+         ],
+         [call(p,[false])] % Error: passing bool to p which expects int (y)
+        ].

@@ -1,0 +1,7 @@
+
+        [[],
+         [func(f,[],integer,[assign(f,5)]),
+          proc(p,[],[call(writeInt,[call(f,[])])])
+         ],
+         [call(p,[])]
+        ].

@@ -1,0 +1,15 @@
+
+        % Reworking Test 74 logic to fit loop N
+        [[var(sum, integer), var(i, integer)],
+         [func(square,[par(x,integer)],integer,[assign(square,times(x,x))])],
+         [
+             assign(sum, 0), assign(i, 1),
+             loop(3, % Execute body 3 times
+                 block([], [
+                     assign(sum, add(sum, call(square,[i]))), % sum = sum + i*i
+                     assign(i, add(i,1)) % i becomes 2, then 3, then 4
+                 ])
+             ),
+             call(writeInt,[sum]) % Iteration 1: sum=0+1*1=1, i=2. Iter 2: sum=1+2*2=5, i=3. Iter 3: sum=5+3*3=14, i=4. Final sum=14.
+         ]
+        ].

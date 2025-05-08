@@ -1,0 +1,20 @@
+
+        [[var(i, integer), var(j, integer)],[],
+         [
+            assign(i, 1),
+            while(le(i, 2), % Outer loop i=1, i=2
+                block([], [
+                    assign(j, 1),
+                    while(le(j, 3), % Inner loop j=1, j=2, j=3
+                        block([], [
+                            call(writeInt,[i]), call(writeStr,[","]), call(writeIntLn,[j]),
+                            if(eql(j, 2), break(null)), % Break inner loop when j=2
+                            assign(j, add(j,1))
+                        ])
+                    ), % Inner loop finished
+                    call(writeStrLn,["---"]),
+                    assign(i, add(i,1))
+                ])
+            ) % Outer loop finished
+         ]
+        ].

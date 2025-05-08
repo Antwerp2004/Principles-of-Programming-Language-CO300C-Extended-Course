@@ -94,6 +94,7 @@ class VMSuite(unittest.TestCase):
         expect = "Type mismatch: call(writeInt,[3.14])"
         self.assertTrue(TestVM.test(input, expect, 14))
 
+
     # --- Tests for Phase 1: Declarations and Lookup ---
 
     # Test 15: Redeclared function name vs global variable
@@ -185,6 +186,7 @@ class VMSuite(unittest.TestCase):
         input = """[[],[],[call(nonExistentProc,[])]]."""
         expect = "Undeclared procedure: call(nonExistentProc,[])"
         self.assertTrue(TestVM.test(input, expect, 29))
+
 
     # --- Tests for Phase 2: Assign, Block, If ---
 
@@ -296,7 +298,8 @@ class VMSuite(unittest.TestCase):
         expect = "Type mismatch: if(add(1,2),call(writeInt,[1]))"
         self.assertTrue(TestVM.test(input, expect, 44))
 
-        # --- Tests for Phase 3: Logical, Relational, Function Calls ---
+
+    # --- Tests for Phase 3: Logical, Relational, Function Calls ---
 
     # Test 45: Logical NOT (bnot)
     def test_45(self):
@@ -398,7 +401,7 @@ class VMSuite(unittest.TestCase):
         input = """
         [[],
          [func(needsInt,[par(x,integer)],integer,[assign(needsInt,x)])],
-         [call(needsInt,[true])]
+         [call(writeInt,[call(needsInt,[true])])]
         ]."""
         expect = "Type mismatch: call(needsInt,[true])" # Error comes from map_args_params check
         self.assertTrue(TestVM.test(input, expect, 58))
@@ -412,3 +415,529 @@ class VMSuite(unittest.TestCase):
         ]."""
         expect = "Invalid expression: call(forgotAssign,[])" # Error finding return value
         self.assertTrue(TestVM.test(input, expect, 59))
+
+
+    # --- Tests for Phase 4: Loops and Control Flow ---
+
+    # Test 60: Simple while loop counting down
+    def test_60(self):
+        input = """
+        [[var(i, integer)],[],
+         [
+            assign(i, 3),
+            while(greater(i, 0),
+                block([], [call(writeInt,[i]), assign(i, sub(i,1))])
+            )
+         ]
+        ]."""
+        expect = "321" # Prints 3, 2, 1
+        self.assertTrue(TestVM.test(input, expect, 60))
+
+    # Test 61: While loop condition initially false
+    def test_61(self):
+        input = """
+        [[var(i, integer)],[],
+         [
+            assign(i, 0),
+            while(greater(i, 0),
+                call(writeInt,[i]) % This should not execute
+            ),
+            call(writeInt,[-1]) % To show loop was skipped
+         ]
+        ]."""
+        expect = "-1"
+        self.assertTrue(TestVM.test(input, expect, 61))
+
+    # Test 62: While loop condition type mismatch error
+    def test_62(self):
+        input = """[[],[],[while(1, call(writeInt,[1]))]]."""
+        expect = "Type mismatch: while(1,call(writeInt,[1]))"
+        self.assertTrue(TestVM.test(input, expect, 62))
+
+    # Test 63: Simple do-while loop
+    def test_63(self):
+        input = """
+        [[var(x, integer)],[],
+         [
+            assign(x, 5),
+            do([call(writeInt,[x]), assign(x, sub(x,1))], greater(x,3))
+            % Body runs for x=5 (prints 5), x becomes 4. 4>3 is true.
+            % Body runs for x=4 (prints 4), x becomes 3. 3>3 is false. Loop ends.
+         ]
+        ]."""
+        expect = "54"
+        self.assertTrue(TestVM.test(input, expect, 63))
+
+    # Test 64: Do-while loop body executes at least once
+    def test_64(self):
+        input = """
+        [[var(x, integer)],[],
+         [
+            assign(x, 0),
+            do([call(writeInt,[x])], false) % Condition is immediately false
+         ]
+        ]."""
+        expect = "0" # Body executes once even if condition is false
+        self.assertTrue(TestVM.test(input, expect, 64))
+
+    # Test 65: Do-while loop condition type mismatch error
+    def test_65(self):
+        input = """[[],[],[do([call(writeInt,[1])], 0)]]."""
+        expect = "Type mismatch: do([call(writeInt,[1])],0)"
+        self.assertTrue(TestVM.test(input, expect, 65))
+
+    # Test 66: Simple loop N statement
+    def test_66(self):
+        input = """
+        [[],[],
+         [
+            loop(4, call(writeInt,[1]))
+         ]
+        ]."""
+        expect = "1111"
+        self.assertTrue(TestVM.test(input, expect, 66))
+
+    # Test 67: Loop N statement with N=0
+    def test_67(self):
+        input = """
+        [[],[],
+         [
+            loop(0, call(writeInt,[1])), % Loop body should not execute
+            call(writeInt,[0]) % To show loop was skipped
+         ]
+        ]."""
+        expect = "0"
+        self.assertTrue(TestVM.test(input, expect, 67))
+
+    # Test 68: Loop N statement with non-integer N error
+    def test_68(self):
+        input = """[[],[],[loop(true, call(writeInt,[1]))]]."""
+        expect = "Type mismatch: loop(true,call(writeInt,[1]))"
+        self.assertTrue(TestVM.test(input, expect, 68))
+
+    # Test 69: Break statement inside while loop
+    def test_69(self):
+        input = """
+        [[var(i, integer)],[],
+         [
+            assign(i, 5),
+            while(true, % Infinite loop condition
+                block([], [
+                    call(writeInt,[i]),
+                    assign(i, sub(i,1)),
+                    if(eql(i, 2), break(null)) % Break when i becomes 2
+                ])
+            ),
+            call(writeInt,[i]) % Print final value of i after break
+         ]
+        ]."""
+        expect = "5432" # Loop prints 5, 4, 3. i becomes 2. Break. Final i is 2.
+        self.assertTrue(TestVM.test(input, expect, 69))
+
+    # Test 70: Continue statement inside loop N
+    def test_70(self):
+        input = """
+        [[var(i, integer)],[],
+         [
+            assign(i, 0),
+            loop(5,
+                block([], [
+                    assign(i, add(i,1)),
+                    if(eql(imod(i,2), 0), continue(null)), % If i is even, continue
+                    call(writeInt,[i]) % Only print odd numbers
+                ])
+            )
+         ]
+        ]."""
+        expect = "135" # Prints 1, skips 2, prints 3, skips 4, prints 5
+        self.assertTrue(TestVM.test(input, expect, 70))
+
+    # Test 71: Break statement not inside a loop error
+    def test_71(self):
+        input = """[[],[],[break(null)]]."""
+        expect = "Break not in a loop: break(null)"
+        self.assertTrue(TestVM.test(input, expect, 71))
+
+    # Test 72: Continue statement not inside a loop error
+    def test_72(self):
+        input = """[[],[],[continue(null)]]."""
+        expect = "Continue not in a loop: continue(null)"
+        self.assertTrue(TestVM.test(input, expect, 72))
+
+    # Test 73: Nested loops with break affecting only inner loop
+    def test_73(self):
+        input = """
+        [[var(i, integer), var(j, integer)],[],
+         [
+            assign(i, 1),
+            while(le(i, 2), % Outer loop i=1, i=2
+                block([], [
+                    assign(j, 1),
+                    while(le(j, 3), % Inner loop j=1, j=2, j=3
+                        block([], [
+                            call(writeInt,[i]), call(writeStr,[","]), call(writeIntLn,[j]),
+                            if(eql(j, 2), break(null)), % Break inner loop when j=2
+                            assign(j, add(j,1))
+                        ])
+                    ), % Inner loop finished
+                    call(writeStrLn,["---"]),
+                    assign(i, add(i,1))
+                ])
+            ) % Outer loop finished
+         ]
+        ]."""
+        # i=1: prints 1,1 -> prints 1,2 -> breaks inner -> prints ---
+        # i=2: prints 2,1 -> prints 2,2 -> breaks inner -> prints ---
+        expect = "1,1\n1,2\n---\n2,1\n2,2\n---\n"
+        self.assertTrue(TestVM.test(input, expect, 73))
+
+    # Test 74: Loop with function call and assignment
+    def test_74(self):
+        input = """
+        % Reworking Test 74 logic to fit loop N
+        [[var(sum, integer), var(i, integer)],
+         [func(square,[par(x,integer)],integer,[assign(square,times(x,x))])],
+         [
+             assign(sum, 0), assign(i, 1),
+             loop(3, % Execute body 3 times
+                 block([], [
+                     assign(sum, add(sum, call(square,[i]))), % sum = sum + i*i
+                     assign(i, add(i,1)) % i becomes 2, then 3, then 4
+                 ])
+             ),
+             call(writeInt,[sum]) % Iteration 1: sum=0+1*1=1, i=2. Iter 2: sum=1+2*2=5, i=3. Iter 3: sum=5+3*3=14, i=4. Final sum=14.
+         ]
+        ]."""
+        expect = "14"
+        self.assertTrue(TestVM.test(input, expect, 74))
+
+    
+    # --- Tests for Phase 5: User-defined Procedures and Integration ---
+
+    # Test 75: Simple procedure call (no params)
+    def test_75(self):
+        input = """
+        [[],
+         [proc(p,[],[call(writeInt,[1])])],
+         [call(p,[])]
+        ]."""
+        expect = "1"
+        self.assertTrue(TestVM.test(input, expect, 75))
+
+    # Test 76: Procedure with one integer parameter
+    def test_76(self):
+        input = """
+        [[],
+         [proc(inc,[par(a,integer)],[call(writeInt,[add(a,1)])])],
+         [call(inc,[10])]
+        ]."""
+        expect = "11"
+        self.assertTrue(TestVM.test(input, expect, 76))
+
+    # Test 77: Procedure modifying a global variable
+    def test_77(self):
+        input = """
+        [[var(g,integer)],
+         [proc(modifyG,[],[assign(g,100)])],
+         [assign(g,0), call(modifyG,[]), call(writeInt,[g])]
+        ]."""
+        expect = "100"
+        self.assertTrue(TestVM.test(input, expect, 77))
+
+    # Test 78: Procedure with multiple parameters (different types)
+    def test_78(self):
+        input = """
+        [[],
+         [proc(printAll,[par(i,integer),par(b,boolean),par(s,string)],
+                [call(writeInt,[i]), call(writeBool,[b]), call(writeStr,[s])])
+         ],
+         [call(printAll,[5,true,"Hello"])]
+        ]."""
+        expect = "5trueHello"
+        self.assertTrue(TestVM.test(input, expect, 78))
+
+    # Test 79: Procedure using local block/variables shadowing parameters
+    def test_79(self):
+        input = """
+        [[],
+         [proc(p,[par(x,integer)],
+              [ block([var(x,integer)], % Local x shadows param x
+                  [assign(x,10), call(writeInt,[x])]) % Prints local x=10
+              ])
+         ],
+         [call(p,[1])]
+        ]."""
+        expect = "10" # Parameter x=1 is shadowed by local x=10
+        self.assertTrue(TestVM.test(input, expect, 79))
+
+    # Test 80: Nested procedure calls
+    def test_80(self):
+        input = """
+        [[],
+         [proc(p2,[],[call(writeInt,[2])]),
+          proc(p1,[],[call(writeInt,[1]), call(p2,[])])
+         ],
+         [call(p1,[])]
+        ]."""
+        expect = "12"
+        self.assertTrue(TestVM.test(input, expect, 80))
+
+    # Test 81: Procedure calling a user-defined function
+    def test_81(self):
+        input = """
+        [[],
+         [func(f,[],integer,[assign(f,5)]),
+          proc(p,[],[call(writeInt,[call(f,[])])])
+         ],
+         [call(p,[])]
+        ]."""
+        expect = "5"
+        self.assertTrue(TestVM.test(input, expect, 81))
+
+    # Test 82: Function calling a procedure
+    def test_82(self):
+        input = """
+        [[],
+         [proc(p,[],[call(writeInt,[10])]),
+          func(f,[],integer,[call(p,[]), assign(f,1)]) % p prints 10, f returns 1
+         ],
+         [call(writeInt,[call(f,[])])] % Prints 10, then prints 1
+        ]."""
+        expect = "101"
+        self.assertTrue(TestVM.test(input, expect, 82))
+
+    # Test 83: Procedure calling a function with parameters from procedure
+    def test_83(self):
+        input = """
+        [[],
+         [func(add1,[par(x,integer)],integer,[assign(add1,add(x,1))]),
+          proc(p,[par(y,integer)],[call(writeInt,[call(add1,[y])])])
+         ],
+         [call(p,[9])]
+        ]."""
+        expect = "10"
+        self.assertTrue(TestVM.test(input, expect, 83))
+
+    # Test 84: Procedure with internal loop
+    def test_84(self):
+        input = """
+        [[],
+         [proc(loopP,[par(n,integer)],
+            [ block([var(i,integer)],
+                [ assign(i,n),
+                  while(greater(i,0),
+                    block([], [call(writeInt,[i]), assign(i,sub(i,1))])
+                  )
+                ])
+            ])
+         ],
+         [call(loopP,[3])]
+        ]."""
+        expect = "321"
+        self.assertTrue(TestVM.test(input, expect, 84))
+
+    # Test 85: Procedure with internal loop + break (break local to proc)
+    def test_85(self):
+        input = """
+        [[],
+         [proc(p,[],
+            [ block([var(i,integer)],
+                [ assign(i,0),
+                  while(true,
+                    block([], [
+                        assign(i,add(i,1)), call(writeInt,[i]),
+                        if(eql(i,3), break(null))
+                    ])
+                  ) % End while
+                ])
+            ])
+         ],
+         [call(p,[]), call(writeInt,[99])] % 99 should print after p finishes
+        ]."""
+        expect = "12399"
+        self.assertTrue(TestVM.test(input, expect, 85))
+
+    # Test 86: Procedure with internal loop + continue
+    def test_86(self):
+        input = """
+        [[],
+         [proc(p,[],
+            [ block([var(i,integer)],
+                [ assign(i,0),
+                  loop(5,
+                    block([], [
+                        assign(i,add(i,1)),
+                        if(eql(imod(i,2), 0), continue(null)), % Skip even i
+                        call(writeInt,[i])
+                    ])
+                  ) % End loop
+                ])
+            ])
+         ],
+         [call(p,[])] % Should print 1, 3, 5
+        ]."""
+        expect = "135"
+        self.assertTrue(TestVM.test(input, expect, 86))
+
+    # Test 87: Calling procedure from within a loop in main
+    def test_87(self):
+        input = """
+        [[],
+         [proc(p,[par(i,integer)],[call(writeInt,[i])])],
+         [loop(3, call(p,[5]))] % Call p(5) three times
+        ]."""
+        expect = "555"
+        self.assertTrue(TestVM.test(input, expect, 87))
+
+    # Test 88: Error - Calling procedure with too few arguments
+    def test_88(self):
+        input = """
+        [[],
+         [proc(p,[par(a,integer),par(b,integer)],[])],
+         [call(p,[1])]
+        ]."""
+        expect = "Wrong number of arguments: call(p,[1])"
+        self.assertTrue(TestVM.test(input, expect, 88))
+
+    # Test 89: Error - Calling procedure with too many arguments
+    def test_89(self):
+        input = """
+        [[],
+         [proc(p,[par(a,integer)],[])],
+         [call(p,[1,2])]
+        ]."""
+        expect = "Wrong number of arguments: call(p,[1,2])"
+        self.assertTrue(TestVM.test(input, expect, 89))
+
+    # Test 90: Error - Calling procedure with wrong argument type
+    def test_90(self):
+        input = """
+        [[],
+         [proc(p,[par(a,boolean)],[])],
+         [call(p,[1])]
+        ]."""
+        # The error message needs to match the format produced when map_args_params throws
+        expect = "Type mismatch: call(p,[1])"
+        self.assertTrue(TestVM.test(input, expect, 90))
+
+    # Test 91: Procedure body attempts to assign to constant
+    def test_91(self):
+        input = """
+        [[const(c,1)],
+         [proc(p,[],[assign(c,2)])],
+         [call(p,[])]
+        ]."""
+        expect = "Cannot assign to a constant: assign(c,2)"
+        self.assertTrue(TestVM.test(input, expect, 91))
+
+    # Test 92: Procedure body uses undeclared variable
+    def test_92(self):
+        input = """
+        [[],
+         [proc(p,[],[call(writeInt,[x])])], % x is not param or local or global
+         [call(p,[])]
+        ]."""
+        expect = "Undeclared identifier: x" # Error from reduce_atom inside p
+        self.assertTrue(TestVM.test(input, expect, 92))
+
+    # Test 93: Integration - globals, func, proc, assign, block, if, loop
+    def test_93(self):
+        input = """
+        [[var(g,integer)],
+         [func(f,[par(x,integer)],integer,[assign(f,times(x,2))]),
+          proc(p,[par(y,integer)],[assign(g,add(g,y))])
+         ],
+         [
+             assign(g,1),
+             loop(3,
+                 block([var(temp,integer)],
+                     [
+                         assign(temp, call(f,[g])), % temp = g*2
+                         if(greater(temp, 5),
+                             call(p,[1]), % g = g + 1
+                             call(p,[0])  % g = g + 0
+                         )
+                     ]
+                 )
+             ),
+             call(writeInt,[g]) % Iter 1: g=1, temp=2, temp<5, p(0) called, g=1.
+                                % Iter 2: g=1, temp=2, temp<5, p(0) called, g=1.
+                                % Iter 3: g=1, temp=2, temp<5, p(0) called, g=1. Something's wrong?
+                                % Let's trace again:
+                                % g=1 -> loop starts
+                                % Iter 1: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1.
+                                % Iter 2: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1.
+                                % Iter 3: temp=f(1)=2. 2>5 is false. p(0) called. g=1+0=1. Final g=1. Expected: 1
+         ]
+        ]."""
+        expect = "1"
+        self.assertTrue(TestVM.test(input, expect, 93))
+
+    # Test 94: Integration - Type mismatch deep inside calls
+    def test_94(self):
+        input = """
+        [[],
+         [func(f,[par(x,integer)],boolean,[assign(f,true)]),
+          proc(p,[par(y,integer)],[call(writeBool,[call(f,[y])])])
+         ],
+         [call(p,[false])] % Error: passing bool to p which expects int (y)
+        ]."""
+        expect = "Type mismatch: call(p,[false])"
+        self.assertTrue(TestVM.test(input, expect, 94))
+
+    # Test 95: Integration - Complex expression evaluation order
+    def test_95(self):
+        input = """
+        [[],
+         [func(f1,[],integer,[assign(f1, 5)]),
+          func(f2,[],integer,[assign(f2, 10)])
+         ],
+         [call(writeInt,[add(sub(call(f1,[]), 1), times(call(f2,[]), 2))])] % (5-1) + (10*2) = 4 + 20 = 24
+        ]."""
+        expect = "24"
+        self.assertTrue(TestVM.test(input, expect, 95))
+
+    # Test 96: Integration - Redeclaration check order (global, param, local)
+    def test_96(self):
+        input = """
+        [[var(x,integer)],
+         [proc(p,[par(x,integer)],[ % Param x is OK (different scope)
+             block([var(x,integer)],[]) % Local x is OK (different scope)
+             ])],
+         []
+        ]."""
+        expect = "" # Should succeed with no output
+        self.assertTrue(TestVM.test(input, expect, 96))
+
+    # Test 97: Integration - Using boolean expressions and short-circuiting with calls
+    def test_97(self):
+        input = """
+        [[],
+         [proc(p,[],[call(writeInt,[1])])], % Procedure that prints 1
+         [
+             if(bor(true, call(p,[])), call(writeInt,[2])), % Should print 2 (short-circuits)
+             if(band(false, call(p,[])), call(writeInt,[3])) % Should print nothing (short-circuits)
+         ]
+        ]."""
+        expect = "2" # Only the first if's body runs
+        self.assertTrue(TestVM.test(input, expect, 97))
+
+    # Test 98: Integration - Assign function result to variable
+    def test_98(self):
+        input = """
+        [[var(r, integer)],
+         [func(calc,[],integer,[assign(calc, 123)])],
+         [assign(r, call(calc,[])), call(writeInt,[r])]
+        ]."""
+        expect = "123"
+        self.assertTrue(TestVM.test(input, expect, 98))
+
+    # Test 99: Integration - Return value requires assignment to function name
+    def test_99(self):
+        input = """
+        [[],
+         [func(calc,[par(x,integer)],integer,[assign(x,add(x,1))])], % Assigns to param x, not func name calc
+         [call(calc,[5])] % Call should cause invalid_expression (unassigned return)
+        ]."""
+        expect = "Invalid expression: call(calc,[5])"
+        self.assertTrue(TestVM.test(input, expect, 99))

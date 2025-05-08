@@ -1,0 +1,10 @@
+
+        [[var(i, integer)],[],
+         [
+            assign(i, 0),
+            while(greater(i, 0),
+                call(writeInt,[i]) % This should not execute
+            ),
+            call(writeInt,[-1]) % To show loop was skipped
+         ]
+        ].
