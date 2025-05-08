@@ -1,0 +1,1 @@
+[[],[],[block([var(a,integer), var(b,float), var(a,boolean)], [])]].

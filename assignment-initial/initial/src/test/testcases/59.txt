@@ -1,0 +1,5 @@
+
+        [[],
+         [func(forgotAssign,[],integer,[])], % Body is empty, never assigns to forgotAssign
+         [call(writeInt,[call(forgotAssign,[])])]
+        ].

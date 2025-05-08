@@ -1,0 +1,1 @@
+[[const(flag,true)],[],[if(flag, call(writeInt,[10]), call(writeInt,[20]))]].

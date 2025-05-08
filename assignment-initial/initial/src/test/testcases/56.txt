@@ -1,0 +1,5 @@
+
+        [[],
+         [func(addTwo,[par(a,integer),par(b,integer)],integer,[assign(addTwo,add(a,b))])],
+         [call(writeInt,[call(addTwo,[10,20])])]
+        ].

@@ -1,0 +1,7 @@
+
+        [[],
+         [func(inner,[],integer,[assign(inner,10)]),
+          func(outer,[],integer,[assign(outer,add(3,call(inner,[])))])
+         ],
+         [call(writeInt,[call(outer,[])])]
+        ].

@@ -1,0 +1,19 @@
+
+        [[var(x,integer), var(y,integer)],[],
+         [
+            assign(x,1), assign(y,10),
+            block([var(x,integer)],
+                [
+                    assign(x,2), assign(y,20), % Assign local x=2, outer y=20
+                    block([var(y,integer)],
+                        [
+                            assign(x,3), assign(y,30), % Assign outer-block x=3, local y=30
+                            call(writeInt,[x]), call(writeInt,[y]) % Prints 3, 30
+                        ]
+                    ),
+                    call(writeInt,[x]), call(writeInt,[y]) % Prints 3, 20 (y is outer y)
+                ]
+            ),
+            call(writeInt,[x]), call(writeInt,[y]) % Prints 1, 20 (x is global x)
+         ]
+        ].

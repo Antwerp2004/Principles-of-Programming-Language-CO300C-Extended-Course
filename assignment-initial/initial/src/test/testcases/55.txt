@@ -1,0 +1,5 @@
+
+        [[],
+         [func(getFive,[],integer,[assign(getFive,5)])],
+         [call(writeInt,[call(getFive,[])])]
+        ].

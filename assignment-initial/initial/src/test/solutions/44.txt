@@ -1,0 +1,1 @@
+Type mismatch: if(add(1,2),call(writeInt,[1]))

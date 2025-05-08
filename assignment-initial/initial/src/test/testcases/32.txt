@@ -1,0 +1,1 @@
+[[var(res,integer)],[],[assign(res, add(times(5,3), idiv(10,2))), call(writeIntLn,[res])]].
