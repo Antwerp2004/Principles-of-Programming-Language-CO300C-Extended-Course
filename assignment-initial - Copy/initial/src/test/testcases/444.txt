@@ -1,0 +1,1 @@
+[[var(a,integer)],[func(foo,[],integer,[assign(a,add(a,1)),assign(foo,a)])],[assign(a,1),while(true,block([],[assign(a,call(foo,[])),if(greater(a,5),break(null),call(writeInt,[a]))]))]].

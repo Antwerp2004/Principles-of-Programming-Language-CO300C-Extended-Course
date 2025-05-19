@@ -1,0 +1,1 @@
+[[],[proc(foo,[],[continue(null)])],[do([call(foo,[])],false)]].

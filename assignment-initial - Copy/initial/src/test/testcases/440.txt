@@ -1,0 +1,1 @@
+[[const(a,1),const(b,add(a,1))],[],[call(writeInt,[b])]].

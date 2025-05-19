@@ -1,0 +1,39 @@
+[[
+            const(limit, 5),
+            var(i, integer), var(j, integer), var(sum, integer), var(temp, integer),
+            var(flag, boolean)
+        ],
+        [
+            func(addMul, [par(a, integer), par(b, integer)], integer, [
+                assign(addMul, times(add(a, b), 2))
+            ]),
+
+            proc(processLoop, [par(x, integer)], [
+                assign(i, 0),
+                assign(sum, 0),
+                while(bnot(eql(i, x)),
+                    block([],[
+                        if(eql(imod(i, 2), 0),
+                            assign(temp, call(addMul, [i, x]))
+                        ),
+                        assign(sum, add(sum, temp)),
+                        if(greater(sum, 50), break(null)),
+                        assign(i, add(i, 1))
+                    ])
+                )
+            ])
+        ],
+        [
+            
+            assign(j, 4),
+            call(processLoop, [j]),
+            call(writeIntLn, [sum]),
+            assign(flag, greater(sum, 10)),
+            if(flag,
+                call(writeIntLn, [1]),
+                call(writeIntLn, [0])
+            ),
+            do([
+                assign(j, add(j, 1))
+            ], less(j, 6))
+        ]].

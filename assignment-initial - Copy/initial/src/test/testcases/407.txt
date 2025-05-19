@@ -1,0 +1,1 @@
+[[],[func(foo,[],integer,[assign(foo,3)])],[call(writeIntLn,[call(foo,[])])]].

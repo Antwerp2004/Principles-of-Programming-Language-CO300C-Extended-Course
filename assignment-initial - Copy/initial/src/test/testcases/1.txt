@@ -1,0 +1,1 @@
+[[var(a,integer),var(b,integer)],[],[assign(a,add(2,3)),call(writeIntLn,[a])]].

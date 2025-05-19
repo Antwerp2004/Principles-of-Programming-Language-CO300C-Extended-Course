@@ -1,0 +1,2 @@
+[[],[func(foo,[],float,[assign(foo,3.0)])],
+[call(writeInt,[call(foo,[])])]]. 

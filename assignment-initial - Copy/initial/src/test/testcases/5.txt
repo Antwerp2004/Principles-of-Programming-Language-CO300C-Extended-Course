@@ -1,0 +1,1 @@
+[[var(n,integer),var(out,integer)],[],[assign(n,3),if(greater(n,0),assign(out,1),assign(out,0)),call(writeIntLn,[out])]].

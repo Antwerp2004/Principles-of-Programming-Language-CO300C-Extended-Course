@@ -1,0 +1,1 @@
+[[var(x,integer)],[],[assign(x,times(add(1,2),sub(10,4))),call(writeIntLn,[x])]].

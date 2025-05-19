@@ -1,0 +1,1 @@
+[[var(f,boolean)],[],[assign(f,greater(5,3)),call(writeBoolLn,[f])]].

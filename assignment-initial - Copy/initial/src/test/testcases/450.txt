@@ -1,0 +1,4 @@
+[[],[],[
+            call(writeInt,[call(writeInt,[1])])
+            
+            ]].

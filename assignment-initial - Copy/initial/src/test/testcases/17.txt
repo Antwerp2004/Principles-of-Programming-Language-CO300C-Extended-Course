@@ -1,0 +1,1 @@
+[[var(a,integer),var(b,integer),var(res,integer)],[],[assign(a,5),assign(b,10),if(greater(b,a),if(eql(a,5),assign(res,100),assign(res,200)),assign(res,300)),call(writeIntLn,[res])]].

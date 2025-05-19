@@ -1,0 +1,5 @@
+[[],[],[call(writeBool,
+        [bor(
+            true,
+            idiv(1,0)
+        )])]].
