@@ -1,1 +1,0 @@
-[[var(i,integer),var(sum,integer)],[],[assign(i,0),assign(sum,0),while(less(i,5),block([], [assign(i,add(i,1)),if(eql(i,3),break(null)),assign(sum,add(sum,i))])),call(writeIntLn,[sum])]].

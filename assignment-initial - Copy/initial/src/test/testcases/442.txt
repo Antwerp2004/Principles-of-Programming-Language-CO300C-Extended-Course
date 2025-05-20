@@ -1,1 +1,0 @@
-[[var(a,integer)],[],[assign(a,0),do([assign(a,add(a,1)),call(writeInt,[a])],less(a,5))]].

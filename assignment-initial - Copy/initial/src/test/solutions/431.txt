@@ -1,1 +1,0 @@
-Cannot assign to a constant: assign(a,add(4,2))

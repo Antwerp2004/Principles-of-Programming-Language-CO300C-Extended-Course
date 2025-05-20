@@ -1,2 +1,0 @@
-[[var(a,integer)],[],[assign(a,1),
-            while(bnot(greater(a,5)),break(null)),call(writeInt,[a])]].

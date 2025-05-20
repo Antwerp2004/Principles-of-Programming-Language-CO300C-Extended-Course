@@ -1,1 +1,0 @@
-[[var(r,boolean)],[],[assign(r,bor(false,false)),call(writeBoolLn,[r])]].

@@ -1,1 +1,0 @@
-[[var(r,boolean)],[],[assign(r,band(true,true)),call(writeBoolLn,[r])]].

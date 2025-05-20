@@ -1,1 +1,0 @@
-[[var(c,integer),var(b,integer)],[func(a,[par(b,integer),par(d,integer)],integer,[assign(c,sub(c,5)),assign(a,add(b,d))])],[assign(b,5),assign(c,2),call(writeInt,[add(call(a,[b,c]),c)])]].

@@ -1,1 +1,0 @@
-Type mismatch: call(writeInt,[call(foo,[])])

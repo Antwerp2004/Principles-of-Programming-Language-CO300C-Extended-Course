@@ -1,1 +1,0 @@
-[[var(i,integer),var(j,integer),var(count,integer)],[],[assign(i,1),assign(count,0),while(le(i,2),block([], [assign(j,1),while(le(j,2),block([], [assign(count,add(count,1)),assign(j,add(j,1))])),assign(i,add(i,1))])),call(writeIntLn,[count])]].

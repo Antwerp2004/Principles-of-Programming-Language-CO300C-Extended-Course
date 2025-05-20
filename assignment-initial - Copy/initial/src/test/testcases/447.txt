@@ -1,1 +1,0 @@
-[[],[],[loop(sub(add(10,7),times(5,3)),call(writeStrLn,["in loop"]))]].

@@ -1,1 +1,0 @@
-[[var(i,integer),var(count,integer)],[],[assign(i,0),assign(count,0),do([assign(i,add(i,1)),assign(count,add(count,2))],less(i,3)),call(writeIntLn,[count])]].

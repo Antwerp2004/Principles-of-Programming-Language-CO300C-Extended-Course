@@ -1,1 +1,0 @@
-[[],[proc(foo,[],[block([var(a,float)],[block([var(a,integer)],[])])])],[call(writeIntLn,[3])]].
